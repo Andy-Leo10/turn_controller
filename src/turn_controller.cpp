@@ -27,9 +27,9 @@ public:
             std::bind(&TurnController::timerCallback, this));
         timer_->cancel();
         // Declare parameters
-        this->declare_parameter<float>("kp", 0.5);
-        this->declare_parameter<float>("ki", 0.0);
-        this->declare_parameter<float>("kd", 0.0);
+        this->declare_parameter<float>("kp", 2.3);
+        this->declare_parameter<float>("ki", 0.0001);
+        this->declare_parameter<float>("kd", 30.0);
         // Get parameters
         this->get_parameter("kp", kp_);
         this->get_parameter("ki", ki_);
@@ -68,7 +68,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     const int TIMER_MS_;
     // control variables
-    float tolerance_ = 0.02, desired_value_ = 0.0;
+    float tolerance_ = 1.0*M_PI/180.0, desired_value_ = 0.0;
     float error_ = 0.0, previous_error_ = 0.0, integral_ = 0.0, derivative_ = 0.0;
     float kp_ = 0.5, ki_ = 0.0, kd_ = 0.0;
     bool achieved_ = false;
@@ -130,17 +130,24 @@ private:
 
     void timerCallback()
     {
+        static int within_tolerance_count = 0;
+        const int tolerance_threshold = 10;  // Adjust this value as needed
+
         if (fabs(error_) > tolerance_)
         {
             control_algorithm_pid();
-            // RCLCPP_INFO(this->get_logger(), "Error: '%.2f'", error_);
+            within_tolerance_count = 0;  // Reset the counter
         }
         else
         {
-            robot_move(0.0, 0.0);
-            achieved_ = true;
-            // deactivate the timer
-            timer_->cancel();
+            within_tolerance_count++;  // Increment the counter
+
+            if (within_tolerance_count >= tolerance_threshold)
+            {
+                robot_move(0.0, 0.0);
+                achieved_ = true;
+                timer_->cancel();
+            }
         }
     }
 
@@ -148,7 +155,7 @@ private:
     {
         // calculate the error
         error_ = desired_angle_ - current_theta_;
-        // // determine the shortest direction
+        // determine the shortest direction
         // float direction = 1.0;
         // if (error_ > M_PI)
         // {
@@ -171,12 +178,12 @@ private:
         derivative_ = (error_ - previous_error_) / ((float)TIMER_MS_ / 1000.0);
         float D = kd_ * derivative_;
         // control algorithm
-        float control_signal = P + I + D;
+        float control_signal = (P + I + D); // (P + I + D)*direction
         // update error
         previous_error_ = error_;
         // saturate the control
         control_signal = saturate(control_signal, -MAX_ANGULAR_SPEED_, MAX_ANGULAR_SPEED_);
-        RCLCPP_INFO(this->get_logger(), "Error: '%.2f' - Control signal: '%.2f'", error_, control_signal);
+        RCLCPP_INFO(this->get_logger(), "Error°: '%.2f' - Control signal: '%.2f'", error_*180.0/M_PI, control_signal);
         // move the robot
         robot_move(0.0, control_signal);
     }
@@ -189,9 +196,25 @@ int main(int argc, char *argv[])
     rclcpp::init(argc, argv);
     auto turn_controller = std::make_shared<TurnController>();
 
-    turn_controller->setDesiredOrientation(1.0, 1.0);
-    while(!turn_controller->hasReachedDesiredOrientation()){rclcpp::spin_some(turn_controller);}
-    rclcpp::sleep_for(std::chrono::seconds(1));
+    // Create a list of waypoints
+    std::vector<std::pair<double, double>> waypoints = {
+        {0.471, -1.376},
+        {1.446, -0.371},
+        {0.583, 0.468},
+        {1.0, 0.0}
+    };
+    //std::vector<std::pair<double, double>> waypoints = {
+    //    {1.0, 0.0},
+    //    {0.0, 1.0}
+    //};
+
+    // Iterate over the waypoints
+    for (const auto& waypoint : waypoints) {
+        turn_controller->setDesiredOrientation(waypoint.first, waypoint.second);
+        while(!turn_controller->hasReachedDesiredOrientation()){rclcpp::spin_some(turn_controller);}
+        rclcpp::sleep_for(std::chrono::seconds(1));
+        RCLCPP_INFO(turn_controller->get_logger(), "------------- Waypoint reached -------------");
+    }
 
     rclcpp::shutdown();
     return 0;

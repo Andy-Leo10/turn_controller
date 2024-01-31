@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import threading
 import rclpy
 from rclpy.node import Node
@@ -31,16 +32,16 @@ class OdomSubscriber(Node):
         """
         t0 = +2.0 * (w * x + y * z)
         t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)*180/math.pi
+        roll_x = math.atan2(t0, t1)
      
         t2 = +2.0 * (w * y - z * x)
         t2 = +1.0 if t2 > +1.0 else t2
         t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)*180/math.pi
+        pitch_y = math.asin(t2)
      
         t3 = +2.0 * (w * z + x * y)
         t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)*180/math.pi
+        yaw_z = math.atan2(t3, t4)
      
         return roll_x, pitch_y, yaw_z # in radians
     
@@ -50,7 +51,7 @@ class OdomSubscriber(Node):
         # Convert the quaternion to euler angles
         roll, pitch, yaw = self.euler_from_quaternion(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
         # Append the yaw angle to the list
-        yaw_ang.append(yaw)
+        yaw_ang.append(yaw*180/3.14159)
         # Keep only the last 100 x positions
         yaw_ang = yaw_ang[-200:]
         # Log the yaw angle
@@ -64,7 +65,7 @@ def animate(i):
     ax1.plot(yaw_ang)
     
     # Set the limits for Y-axis
-    ax1.set_ylim(-3.2, 3.2)
+    ax1.set_ylim(-181.0, 180.0)
     # add a grid to the plot
     ax1.grid(True)
     # Add a title to the plot
