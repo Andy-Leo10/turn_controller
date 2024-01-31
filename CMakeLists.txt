@@ -8,9 +8,12 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(tf2 REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -23,5 +26,23 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+
+# generate .cpp executables
+add_executable(turn_controller src/turn_controller.cpp)
+ament_target_dependencies(turn_controller rclcpp tf2 geometry_msgs nav_msgs)
+
+# install .cpp executables
+install(TARGETS
+  turn_controller
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# install .py programs
+install(PROGRAMS
+  src/control_plot.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 
 ament_package()
