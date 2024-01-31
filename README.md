@@ -1,4 +1,4 @@
-# PID distance controller
+# PID turn controller
 
 ## Start Simulation
 
@@ -17,6 +17,8 @@ After compile:
 
 ### Test in simulation
 
+    ros2 run turn_controller turn_controller
+    ros2 run turn_controller turn_controller --ros-args -p kp:=2.6 -p ki:=0.0001 -p kd:=30.0
     ros2 run turn_controller turn_controller 1
 ### Test in real robot
 
