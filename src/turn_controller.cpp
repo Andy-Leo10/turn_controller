@@ -30,6 +30,7 @@ public:
         this->declare_parameter<float>("kp", 2.3);
         this->declare_parameter<float>("ki", 0.0001);
         this->declare_parameter<float>("kd", 30.0);
+        // real robot kp=1.5, ki=0.02, kd=0.009
         // Get parameters
         this->get_parameter("kp", kp_);
         this->get_parameter("ki", ki_);
@@ -41,6 +42,10 @@ public:
         desired_value_ = atan2(y_pos, x_pos);
         odom_received_ = false;
         achieved_ = false;
+        // Get parameters
+        this->get_parameter("kp", kp_);
+        this->get_parameter("ki", ki_);
+        this->get_parameter("kd", kd_);
     }
 
     bool hasReachedDesiredOrientation()
@@ -190,23 +195,52 @@ private:
 
 };
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     setenv("RCUTILS_CONSOLE_OUTPUT_FORMAT", "[{severity}]: [{message}]", 1);
     rclcpp::init(argc, argv);
+    // Check if a scene number argument is provided
+    int scene_number_ = 1; // Default scene number
+    if (argc > 1) {
+        scene_number_ = std::atoi(argv[1]);
+    }
     auto turn_controller = std::make_shared<TurnController>();
 
-    // Create a list of waypoints
-    std::vector<std::pair<double, double>> waypoints = {
+    // Declare waypoints before the switch statement
+    std::vector<std::pair<double, double>> waypoints;
+    // Create a list of waypoints, depending on the scene number
+    switch (scene_number_) {
+    case 1: // Simulation
+        waypoints = {
         {0.471, -1.376},
         {1.446, -0.371},
         {0.583, 0.468},
         {1.0, 0.0}
-    };
-    //std::vector<std::pair<double, double>> waypoints = {
-    //    {1.0, 0.0},
-    //    {0.0, 1.0}
-    //};
+        };
+        break;
+
+    case 2: // CyberWorld
+        turn_controller->set_parameter(rclcpp::Parameter("kp", 1.5));
+        turn_controller->set_parameter(rclcpp::Parameter("ki", 0.02));
+        turn_controller->set_parameter(rclcpp::Parameter("kd", 0.009));
+        waypoints = {
+        {0.990, -0.259},
+        {0.629, -1.418}
+        };
+        break;
+
+    case 3: // Test World - calibration
+        waypoints = {
+        {1.0, 0.0},
+        {0.0, 1.0}
+        };
+        break;
+
+    default:
+        RCLCPP_ERROR(turn_controller->get_logger(), "Invalid scene number: %d",scene_number_);
+        return -1;
+    }
+
 
     // Iterate over the waypoints
     for (const auto& waypoint : waypoints) {
